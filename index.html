@@ -1,0 +1,269 @@
+<html>
+
+<head>
+    <script type="text/javascript" src="p5/p5.js"></script>
+    <script type="text/javascript" src="p5/p5.sound.js"></script>
+    <script>
+        var notes = [60, 62, 64, 65, 67, 69, 71];
+        var systems = [];
+        // For automatically playing the song
+        var index = 0;
+        var song = [{
+            note: 4,
+            duration: 400,
+            display: "D"
+        }, {
+            note: 0,
+            duration: 200,
+            display: "G"
+        }, {
+            note: 1,
+            duration: 200,
+            display: "A"
+        }, {
+            note: 2,
+            duration: 200,
+            display: "B"
+        }, {
+            note: 3,
+            duration: 200,
+            display: "C"
+        }, {
+            note: 4,
+            duration: 400,
+            display: "D"
+        }, {
+            note: 0,
+            duration: 400,
+            display: "G"
+        }, {
+            note: 0,
+            duration: 400,
+            display: "G"
+        }];
+        var trigger = 0;
+        var autoplay = false;
+        var osc;
+        var flag = false;
+
+        function setup() {
+            background(0);
+            createCanvas(1000, 500);
+            background(0);
+            systems = [];
+            osc = new p5.TriOsc();
+            // Start silent
+            osc.start();
+            osc.amp(0);
+
+        }
+
+        function draw() {
+            ellipse(360, 200, 200, 200);
+            if (flag) {
+                var w = width / notes.length;
+
+                for (var i = 0; i < notes.length; i++) {
+                    var x = i * w;
+                    // If the mouse is over the key
+                    if (mouseX > x && mouseX < x + w && mouseY < height) {
+                        // If we're clicking
+                        if (mouseIsPressed) {
+                            fill(100, 255, 200);
+                            // Or just rolling over
+                        } else {
+                            fill(127);
+                        }
+                    } else {
+                        fill(200);
+                    }
+
+                    // Or if we're playing the song, let's highlight it too
+                    if (autoplay && i === song[index - 1].note) {
+                        fill(100, 255, 200);
+                    }
+
+                    // Draw the key
+                    if (i % 2 == 0) {
+                        fill(255);
+                        rect(x, 0, w - 1, height - 1);
+                    } else {
+                        fill(0);
+                        rect(x, 0, w - 1, height - 1);
+                    }
+                }
+                for (i = 0; i < systems.length; i++) {
+                    systems[i].run();
+                    systems[i].addParticle();
+                }
+            }
+        }
+
+        function playNote(note, duration) {
+            osc.freq(midiToFreq(note));
+            // Fade it in
+            osc.fade(0.5, 0.2);
+
+            // If we sest a duration, fade it out
+            if (duration) {
+                setTimeout(function() {
+                    osc.fade(0, 0.2);
+                }, duration - 50);
+            }
+        }
+
+        function mouseDragged() {
+            this.p = new ParticleSystem(createVector(mouseX, mouseY));
+            systems.push(p);
+            var key = floor(map(mouseX, 0, width, 0, notes.length));
+            playNote(notes[key]);
+            setTimeout(function() {
+                systems.pop(p);
+            }, 2000);
+        }
+
+        function mousePressed() {
+            // Map mouse to the key index
+            var d = dist(mouseX, mouseY, 360, 200);
+            if (d < 100) {
+                flag = true;
+                // Pick new random color values
+            }
+            if (flag) {
+
+                this.p = new ParticleSystem(createVector(mouseX, mouseY));
+                systems.push(p);
+                var key = floor(map(mouseX, 0, width, 0, notes.length));
+                playNote(notes[key]);
+                setTimeout(function() {
+                    systems.pop(p);
+                }, 500);
+            }
+        }
+
+        // Fade it out when we release
+        function mouseReleased() {
+            osc.fade(0, 0.5);
+
+        }
+
+
+
+        var Particle = function(position) {
+            this.acceleration = createVector(0, 0.05);
+            this.velocity = createVector(random(-1, 1), random(-1, 0));
+            this.position = position.copy();
+            this.lifespan = 255.0;
+        };
+
+        Particle.prototype.run = function() {
+            this.update();
+            this.display();
+        };
+
+        // Method to update position
+        Particle.prototype.update = function() {
+            this.velocity.add(this.acceleration);
+            this.position.add(this.velocity);
+            this.lifespan -= 2;
+        };
+
+        // Method to display
+        Particle.prototype.display = function() {
+            stroke(200, this.lifespan);
+            strokeWeight(2);
+            r = random(255);
+            g = random(255);
+            b = random(255);
+            fill(r, g, b, this.lifespan);
+            ellipse(this.position.x, this.position.y, 12, 12);
+        };
+
+        // Is the particle still useful?
+        Particle.prototype.isDead = function() {
+            if (this.lifespan < 0) {
+                return true;
+            } else {
+                return false;
+            }
+        };
+
+        var ParticleSystem = function(position) {
+            this.origin = position.copy();
+            this.particles = [];
+        };
+
+        ParticleSystem.prototype.addParticle = function() {
+            // Add either a Particle or CrazyParticle to the system
+            if (int(random(0, 2)) == 0) {
+                p = new Particle(this.origin);
+            } else {
+                p = new CrazyParticle(this.origin);
+            }
+            this.particles.push(p);
+        };
+
+        ParticleSystem.prototype.run = function() {
+            for (var i = this.particles.length - 1; i >= 0; i--) {
+                var p = this.particles[i];
+                p.run();
+                if (p.isDead()) {
+                    this.particles.splice(i, 2);
+                }
+            }
+        };
+
+        // A subclass of Particle
+
+        function CrazyParticle(origin) {
+            // Call the parent constructor, making sure (using Function#call)
+            // that "this" is set correctly during the call
+            Particle.call(this, origin);
+
+            // Initialize our added properties
+            this.theta = 0.0;
+        };
+
+        // Create a Crazy.prototype object that inherits from Particle.prototype.
+        // Note: A common error here is to use "new Particle()" to create the
+        // Crazy.prototype. That's incorrect for several reasons, not least 
+        // that we don't have anything to give Particle for the "origin" 
+        // argument. The correct place to call Particle is above, where we call 
+        // it from Crazy.
+        CrazyParticle.prototype = Object.create(Particle.prototype); // See note below
+
+        // Set the "constructor" property to refer to CrazyParticle
+        CrazyParticle.prototype.constructor = CrazyParticle;
+
+        // Notice we don't have the method run() here; it is inherited from Particle
+
+        // This update() method overrides the parent class update() method
+        CrazyParticle.prototype.update = function() {
+            Particle.prototype.update.call(this);
+            // Increment rotation based on horizontal velocity
+            this.theta += (this.velocity.x * this.velocity.mag()) / 10.0;
+        }
+
+        // This display() method overrides the parent class display() method
+        CrazyParticle.prototype.display = function() {
+            // Render the ellipse just like in a regular particle
+            Particle.prototype.display.call(this);
+            // Then add a rotating line
+            push();
+            translate(this.position.x, this.position.y);
+            rotate(this.theta);
+            r = random(255);
+            g = random(255);
+            b = random(255);
+            stroke(r, g, b, this.lifespan);
+            line(0, 0, 25, 0);
+            pop();
+        }
+    </script>
+</head>
+
+<body>
+
+</body>
+
+</html>
